@@ -1,70 +1,75 @@
-use std::{error, fs, path::PathBuf, process::exit};
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
+#![allow(clippy::mutable_key_type)]
 
-extern crate glob;
+#[macro_use]
+extern crate tracing;
 
 use clap::Parser;
-use results::{print_results, record_results};
+use color_eyre::eyre::{ensure, eyre, Context, Result};
+use itertools::Itertools;
+use std::{fs, path::PathBuf};
 
 mod build;
+use build::build_benchmarks;
+
 mod exec;
+use exec::validate_executable;
+
 mod metadata;
+use metadata::{find_benchmarks, find_runners, BenchmarkDefaults};
+
 mod results;
+use results::{print_results, record_results};
+
 mod run;
+use run::run_benchmarks_on_runners;
 
-use crate::{
-    build::build_benchmarks,
-    exec::validate_executable,
-    metadata::{find_benchmarks, find_runners, BenchmarkDefaults},
-    run::run_benchmarks_on_runners,
-};
-
-/// Ethereum Virtual Machine Benchmark (evm-bench)
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
+/// Ethereum Virtual Machine Benchmark
+#[derive(Debug, Parser)]
+struct Cli {
     /// Path to use as the base for benchmarks searching
-    #[arg(long, default_value = "./benchmarks")]
+    #[arg(long, default_value = "benchmarks")]
     benchmark_search_path: PathBuf,
 
     /// Names of benchmarks to run.
-    #[arg(long, default_value = None)]
+    #[arg(long)]
     benchmarks: Option<Vec<String>>,
 
     /// Path to use as the base for runners searching
-    #[arg(short, long, default_value = "./runners")]
+    #[arg(short, long, default_value = "runners")]
     runner_search_path: PathBuf,
 
     /// Names of runners to use.
-    #[arg(long, default_value = None)]
+    #[arg(long)]
     runners: Option<Vec<String>>,
 
     /// Output path for build artifacts and other things
-    #[arg(short, long, default_value = "./outputs")]
+    #[arg(short, long, default_value = "outputs")]
     output_path: PathBuf,
 
     /// Name of the output file, will not overwrite.
     /// Default means to use the current datetime.
-    #[arg(long, default_value = None)]
+    #[arg(long)]
     output_file_name: Option<String>,
 
     /// Path to a Docker executable (this is used for solc)
-    #[arg(long, default_value = "docker")]
-    docker_executable: PathBuf,
+    #[arg(long)]
+    docker_executable: Option<PathBuf>,
 
     /// Path to a CPython executable (this is used for runners)
-    #[arg(long, default_value = "python3")]
-    cpython_executable: PathBuf,
+    #[arg(long)]
+    cpython_executable: Option<PathBuf>,
 
     /// Path to a PyPy executable (this is used for runners)
-    #[arg(long, default_value = "pypy3")]
-    pypy_executable: PathBuf,
+    #[arg(long)]
+    pypy_executable: Option<PathBuf>,
 
     /// Path to a NPM executable (this is used for runners)
-    #[arg(long, default_value = "npm")]
-    npm_executable: PathBuf,
+    #[arg(long)]
+    npm_executable: Option<PathBuf>,
 
     /// Path to benchmark metadata schema
-    #[arg(long, default_value = "./benchmarks/schema.json")]
+    #[arg(long, default_value = "benchmarks/schema.json")]
     benchmark_metadata_schema: PathBuf,
 
     /// Name of benchmark metadata file to search for
@@ -72,7 +77,7 @@ struct Args {
     benchmark_metadata_name: String,
 
     /// Path to runner metadata schema
-    #[arg(long, default_value = "./runners/schema.json")]
+    #[arg(long, default_value = "runners/schema.json")]
     runner_metadata_schema: PathBuf,
 
     /// Name of benchmark metadata file to search
@@ -90,77 +95,106 @@ struct Args {
     /// Default calldata to use if none specified in the benchmark metadata
     #[arg(long, default_value = "")]
     default_calldata_str: String,
+
+    /// Always build benchmarks, even if they are already built
+    #[arg(long)]
+    force_build: bool,
+
+    /// Display the latest results, or parse the given file
+    #[arg(long)]
+    display: Option<Option<PathBuf>>,
 }
 
-fn main() {
-    env_logger::init();
+fn main() -> Result<()> {
+    let _ = color_eyre::install();
+    let _ = init_tracing_subscriber();
 
-    let args = Args::parse();
+    let cli = Cli::parse();
 
-    (|| -> Result<(), Box<dyn error::Error>> {
-        let docker_executable = validate_executable("docker", &args.docker_executable)?;
-        let _ = validate_executable("cargo", &PathBuf::from("cargo"))?;
-        let _ = validate_executable("poetry", &PathBuf::from("poetry"))?;
-        let _ = validate_executable("python3", &PathBuf::from(args.cpython_executable))?;
-        let _ = validate_executable("pypy3", &PathBuf::from(args.pypy_executable))?;
-        let _ = validate_executable("npm", &PathBuf::from(args.npm_executable))?;
-
-        let default_calldata = hex::decode(args.default_calldata_str.to_string())?;
-
-        let benchmarks_path = args.benchmark_search_path.canonicalize()?;
-        let benchmarks = find_benchmarks(
-            &args.benchmark_metadata_name,
-            &args.benchmark_metadata_schema,
-            &benchmarks_path,
-            BenchmarkDefaults {
-                solc_version: args.default_solc_version,
-                num_runs: args.default_num_runs,
-                calldata: default_calldata,
-            },
-        )?;
-        let mut benchmarks = match args.benchmarks {
-            None => benchmarks,
-            Some(arg_benchmarks) => benchmarks
-                .into_iter()
-                .filter(|b| arg_benchmarks.contains(&b.name))
-                .collect(),
+    if let Some(path) = cli.display {
+        let path = match path {
+            Some(path) => path,
+            None => fs::read_dir(cli.output_path.join("results"))
+                .wrap_err("could not read results directory")?
+                .flatten()
+                .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+                .map(|entry| entry.path())
+                .max()
+                .ok_or_else(|| eyre!("no results found"))?,
         };
-        benchmarks.sort_by_key(|b| b.name.clone());
+        return print_results(&path);
+    }
 
-        let runners_path = args.runner_search_path.canonicalize()?;
-        let runners = find_runners(
-            &args.runner_metadata_name,
-            &args.runner_metadata_schema,
-            &runners_path,
-            (),
-        )?;
-        let mut runners = match args.runners {
-            None => runners,
-            Some(arg_runners) => runners
-                .into_iter()
-                .filter(|r| arg_runners.contains(&r.name))
-                .collect(),
-        };
-        runners.sort_by_key(|b| b.name.clone());
+    let docker_executable = validate_executable("docker", cli.docker_executable.as_deref())?;
+    let _ = validate_executable("cargo", None)?;
+    let _ = validate_executable("poetry", None)?;
+    let _ = validate_executable("python3", cli.cpython_executable.as_deref())?;
+    let _ = validate_executable("pypy3", cli.pypy_executable.as_deref())?;
+    let _ = validate_executable("npm", cli.npm_executable.as_deref())?;
 
-        fs::create_dir_all(&args.output_path)?;
-        let outputs_path = args.output_path.canonicalize()?;
+    let default_calldata = alloy_primitives::hex::decode(&cli.default_calldata_str)?;
 
-        let builds_path = outputs_path.join("build");
-        fs::create_dir_all(&builds_path)?;
-        let built_benchmarks = build_benchmarks(&benchmarks, &docker_executable, &builds_path)?;
+    let benchmarks_path = cli.benchmark_search_path.canonicalize()?;
+    let mut benchmarks = find_benchmarks(
+        &cli.benchmark_metadata_name,
+        &cli.benchmark_metadata_schema,
+        &benchmarks_path,
+        BenchmarkDefaults {
+            solc_version: cli.default_solc_version,
+            num_runs: cli.default_num_runs,
+            calldata: default_calldata.into(),
+        },
+    )?;
+    if let Some(arg_benchmarks) = &cli.benchmarks {
+        let known = benchmarks.iter().map(|r| &r.name);
+        let unknown = arg_benchmarks
+            .iter()
+            .filter(|&arg| !known.clone().any(|r| arg == r))
+            .collect::<Vec<_>>();
+        ensure!(unknown.is_empty(), "unknown benchmarks(s): {}", unknown.iter().format(", "));
+        benchmarks.retain(|b| arg_benchmarks.contains(&b.name));
+    }
+    benchmarks.sort_by(|a, b| a.name.cmp(&b.name));
 
-        let results = run_benchmarks_on_runners(&built_benchmarks, &runners)?;
+    let runners_path = cli.runner_search_path.canonicalize()?;
+    let mut runners =
+        find_runners(&cli.runner_metadata_name, &cli.runner_metadata_schema, &runners_path, ())?;
+    if let Some(arg_runners) = &cli.runners {
+        let known = runners.iter().map(|r| &r.name);
+        let unknown =
+            arg_runners.iter().filter(|&arg| !known.clone().any(|r| arg == r)).collect::<Vec<_>>();
+        ensure!(unknown.is_empty(), "unknown runner(s): {}", unknown.iter().format(", "));
+        runners.retain(|r| arg_runners.contains(&r.name));
+    }
+    runners.sort_by(|a, b| a.name.cmp(&b.name));
 
-        let results_path = outputs_path.join("results");
-        fs::create_dir_all(&results_path)?;
-        let result_file_path = record_results(&results_path, args.output_file_name, &results)?;
-        print_results(&result_file_path)?;
+    fs::create_dir_all(&cli.output_path)?;
+    let outputs_path = cli.output_path.canonicalize()?;
 
-        Ok(())
-    })()
-    .unwrap_or_else(|e| {
-        log::error!("{e}");
-        exit(-1);
-    });
+    let builds_path = outputs_path.join("build");
+    fs::create_dir_all(&builds_path)?;
+    let built_benchmarks =
+        build_benchmarks(&benchmarks, &docker_executable, &builds_path, cli.force_build)?;
+
+    let results = run_benchmarks_on_runners(&built_benchmarks, &runners)?;
+
+    let results_path = outputs_path.join("results");
+    fs::create_dir_all(&results_path)?;
+    let result_file_path = record_results(&results_path, cli.output_file_name, &results)?;
+    print_results(&result_file_path)?;
+
+    Ok(())
+}
+
+fn init_tracing_subscriber() -> Result<(), tracing_subscriber::util::TryInitError> {
+    use tracing_subscriber::prelude::*;
+    tracing_subscriber::Registry::default()
+        .with(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .with(tracing_error::ErrorLayer::default())
+        .with(tracing_subscriber::fmt::layer())
+        .try_init()
 }

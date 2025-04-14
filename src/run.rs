@@ -1,161 +1,94 @@
-use std::{
-    collections::{HashMap, HashSet},
-    error,
-    process::Command,
-    time::Duration,
-};
-
-use serde::{Deserialize, Serialize};
-
 use crate::{
     build::BuiltBenchmark,
     metadata::{Benchmark, Runner},
 };
+use alloy_primitives::hex;
+use color_eyre::eyre::{ensure, Result};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, process::Command, time::Duration};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+type BenchmarkResults = HashMap<Benchmark, RunResult>;
+pub type Results = HashMap<Runner, BenchmarkResults>;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunResult {
     pub run_times: Vec<Duration>,
 }
 
-type BenchmarkResults = HashMap<Runner, RunResult>;
-pub type Results = HashMap<Benchmark, BenchmarkResults>;
-
-fn run_benchmark_on_runner(
-    benchmark: &BuiltBenchmark,
-    runner: &Runner,
-) -> Result<RunResult, Box<dyn error::Error>> {
-    log::info!(
-        "running benchmark {} on runner {}...",
-        benchmark.benchmark.name,
-        runner.name
-    );
-    log::debug!(
-        "running {} times using code {} with calldata {}...",
-        benchmark.benchmark.num_runs,
-        benchmark
-            .result
-            .contract_bin_path
-            .file_name()
-            .unwrap()
-            .to_string_lossy(),
-        hex::encode(&benchmark.benchmark.calldata),
-    );
-
-    let out = Command::new(&runner.entry)
-        .args([
-            "--contract-code-path",
-            &benchmark.result.contract_bin_path.to_string_lossy(),
-        ])
-        .args(["--calldata", &hex::encode(&benchmark.benchmark.calldata)])
-        .args(["--num-runs", &format!("{}", benchmark.benchmark.num_runs)])
-        .output()?;
-
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    log::trace!("stdout: {}", stdout);
-    log::trace!("stderr: {}", String::from_utf8(out.stderr).unwrap());
-
-    if out.status.success() {
-        let mut times: Vec<Duration> = Vec::new();
-        for line in stdout.trim().split("\n") {
-            times.push(Duration::from_millis(
-                str::parse::<f64>(line)?.round() as u64
-            ));
+impl RunResult {
+    pub fn average(&self) -> Option<Duration> {
+        if self.run_times.is_empty() {
+            return None;
         }
-
-        log::debug!(
-            "ran benchmark {} on runner {}",
-            benchmark.benchmark.name,
-            runner.name
-        );
-        Ok(RunResult { run_times: times })
-    } else {
-        Err(format!("{}", out.status).into())
-    }
-}
-
-fn run_benchmark_on_runners(
-    benchmark: &BuiltBenchmark,
-    runners: &Vec<Runner>,
-) -> Result<BenchmarkResults, Box<dyn error::Error>> {
-    let runner_names = runners
-        .iter()
-        .map(|b| b.name.clone())
-        .collect::<HashSet<_>>();
-
-    log::info!(
-        "running benchmark {} on {} runners...",
-        benchmark.benchmark.name,
-        runners.len()
-    );
-    log::debug!(
-        "runners: {}",
-        runner_names.iter().cloned().collect::<Vec<_>>().join(", ")
-    );
-
-    let mut results = HashMap::<Runner, RunResult>::new();
-    for runner in runners {
-        let result = match run_benchmark_on_runner(benchmark, runner) {
-            Ok(res) => res,
-            Err(e) => {
-                log::warn!(
-                    "could not run benchmark {} on runner {}: {e}",
-                    benchmark.benchmark.name,
-                    runner.name
-                );
-                continue;
-            }
-        };
-        results.insert(runner.clone(), result);
+        Some(self.sum() / self.run_times.len() as u32)
     }
 
-    log::debug!(
-        "ran benchmark {} on {} runners ({} successful)",
-        benchmark.benchmark.name,
-        runners.len(),
-        results.len()
-    );
-    Ok(results)
+    fn sum(&self) -> Duration {
+        self.run_times.iter().sum()
+    }
 }
 
 pub fn run_benchmarks_on_runners(
-    benchmarks: &Vec<BuiltBenchmark>,
-    runners: &Vec<Runner>,
-) -> Result<Results, Box<dyn error::Error>> {
-    let benchmark_names = benchmarks
-        .iter()
-        .map(|b| b.benchmark.name.clone())
-        .collect::<HashSet<_>>();
+    benchmarks: &[BuiltBenchmark],
+    runners: &[Runner],
+) -> Result<Results> {
+    info!("running {} benchmarks on {} runners...", benchmarks.len(), runners.len());
+    debug!("runners: {}", runners.iter().map(|r| &r.name).format(", "));
+    debug!("benchmarks: {}", benchmarks.iter().map(|b| &b.benchmark.name).format(", "));
+    let mut results = Results::with_capacity(runners.len());
+    for runner in runners {
+        results.insert(runner.clone(), run_benchmarks_on_runner(runner, benchmarks));
+    }
+    Ok(results)
+}
 
-    log::info!("running {} benchmarks...", benchmarks.len());
-    log::debug!(
-        "benchmarks: {}",
-        benchmark_names
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-
-    let mut results: HashMap<Benchmark, HashMap<Runner, RunResult>> = HashMap::new();
+fn run_benchmarks_on_runner(runner: &Runner, benchmarks: &[BuiltBenchmark]) -> BenchmarkResults {
+    info!("running benchmarks on {}...", runner.name);
+    // NOTE: It is expected that this map contains all benchmarks.
+    let mut results = BenchmarkResults::with_capacity(benchmarks.len());
     for benchmark in benchmarks {
-        let result = match run_benchmark_on_runners(benchmark, &runners) {
+        let result = match run_benchmark_on_runner(benchmark, runner) {
             Ok(res) => res,
             Err(e) => {
-                log::warn!(
-                    "could not run benchmark {} on runners: {e}",
-                    benchmark.benchmark.name
+                warn!(
+                    "could not run benchmark {} on runner {}: {e}",
+                    benchmark.benchmark.name, runner.name
                 );
-                continue;
+                RunResult::default()
             }
         };
-
         results.insert(benchmark.benchmark.clone(), result);
     }
+    results
+}
 
-    log::debug!(
-        "ran {} benchmarks ({} successful)",
-        benchmarks.len(),
-        results.len()
+fn run_benchmark_on_runner(benchmark: &BuiltBenchmark, runner: &Runner) -> Result<RunResult> {
+    info!("{}: {}...", runner.name, benchmark.benchmark.name);
+    debug!(
+        "running {} times using code {} with calldata {}...",
+        benchmark.benchmark.num_runs,
+        benchmark.result.contract_bin_path.file_name().unwrap().to_string_lossy(),
+        hex::encode(&benchmark.benchmark.calldata),
     );
-    Ok(results)
+
+    let mut cmd = Command::new(&runner.entry);
+    cmd.arg("--contract-code-path").arg(&benchmark.result.contract_bin_path);
+    cmd.arg("--calldata").arg(&hex::encode(&benchmark.benchmark.calldata));
+    cmd.arg("--num-runs").arg(&benchmark.benchmark.num_runs.to_string());
+    trace!("cmd: {cmd:?}");
+    let out = cmd.output()?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    trace!("stdout: {stdout}");
+    trace!("stderr: {}", String::from_utf8_lossy(&out.stderr));
+    ensure!(out.status.success(), "could not run benchmark: {}", out.status);
+
+    let mut run_times: Vec<Duration> = Vec::with_capacity(16);
+    for line in stdout.trim().lines() {
+        let millis: f64 = line.parse()?;
+        run_times.push(Duration::try_from_secs_f64(millis / 1000.0)?);
+    }
+
+    debug!("ran benchmark {}", benchmark.benchmark.name);
+    Ok(RunResult { run_times })
 }

@@ -1,14 +1,12 @@
+use crate::metadata::Benchmark;
+use color_eyre::eyre::{ensure, Result};
+use itertools::Itertools;
 use std::{
-    collections::HashSet,
-    error,
-    fs::create_dir_all,
+    fs,
     path::{Path, PathBuf},
     process::Command,
 };
-
 use users::{get_current_gid, get_current_uid};
-
-use crate::metadata::Benchmark;
 
 #[derive(Clone, Debug)]
 struct BuildContext {
@@ -31,121 +29,86 @@ pub struct BuiltBenchmark {
 
 fn build_benchmark(
     benchmark: &Benchmark,
+    force: bool,
     build_context: &BuildContext,
-) -> Result<BuiltBenchmark, Box<dyn error::Error>> {
-    let contract_name = benchmark
-        .contract
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
+) -> Result<BuiltBenchmark> {
+    let contract_name = benchmark.contract.file_name().unwrap().to_string_lossy().to_string();
 
-    log::info!(
+    info!(
         "building benchmark {} ({contract_name} w/ solc@{})...",
-        benchmark.name,
-        benchmark.solc_version
+        benchmark.name, benchmark.solc_version
     );
 
-    let relative_contract_path = build_context
-        .contract_path
-        .strip_prefix(&build_context.contract_context_path)?;
+    let relative_contract_path =
+        build_context.contract_path.strip_prefix(&build_context.contract_context_path)?;
 
     let docker_contract_context_path = PathBuf::from("/benchmark");
     let docker_contract_path = docker_contract_context_path.join(relative_contract_path);
     let docker_build_path = PathBuf::from("/build");
 
-    create_dir_all(&build_context.build_path)?;
+    fs::create_dir_all(&build_context.build_path)?;
 
-    let out = Command::new(&build_context.docker_executable)
-        .arg("run")
-        .args([
-            "-u",
-            &format!("{}:{}", get_current_uid(), get_current_gid()),
-        ])
-        .args([
-            "-v",
-            &format!(
-                "{}:{}",
-                build_context.contract_context_path.to_string_lossy(),
-                docker_contract_context_path.to_string_lossy()
-            ),
-        ])
-        .args([
-            "-v",
-            &format!(
-                "{}:{}",
-                build_context.build_path.to_string_lossy(),
-                docker_build_path.to_string_lossy()
-            ),
-        ])
-        .arg(format!("ethereum/solc:{}", benchmark.solc_version))
-        .args(["-o", &docker_build_path.to_string_lossy()])
-        .args(["--abi", "--bin", "--optimize", "--overwrite"])
-        .arg(docker_contract_path)
-        .output()?;
+    let contract_bin_path = build_context.build_path.join(&contract_name).with_extension("bin");
 
-    log::trace!("stdout: {}", String::from_utf8(out.stdout).unwrap());
-    log::trace!("stderr: {}", String::from_utf8(out.stderr).unwrap());
-
-    if out.status.success() {
-        let mut contract_bin_path = build_context.build_path.join(&contract_name);
-        contract_bin_path.set_extension("bin");
-
-        log::debug!("built benchmark {}", benchmark.name);
-        Ok(BuiltBenchmark {
+    if !force && contract_bin_path.exists() {
+        debug!("benchmark {} already built", benchmark.name);
+        return Ok(BuiltBenchmark {
             benchmark: benchmark.clone(),
             result: BuildResult { contract_bin_path },
-        })
-    } else {
-        Err(format!("{}", out.status).into())
+        });
     }
+
+    let mut cmd = Command::new(&build_context.docker_executable);
+    cmd.arg("run");
+    cmd.arg("-u").arg(&format!("{}:{}", get_current_uid(), get_current_gid()));
+    cmd.arg("-v").arg(&format!(
+        "{}:{}",
+        build_context.contract_context_path.display(),
+        docker_contract_context_path.display()
+    ));
+    cmd.arg("-v").arg(&format!(
+        "{}:{}",
+        build_context.build_path.display(),
+        docker_build_path.display()
+    ));
+    cmd.arg(format!("ethereum/solc:{}", benchmark.solc_version));
+    cmd.arg("-o").arg(&docker_build_path);
+    cmd.args(["--optimize", "--optimize-runs=1000000"]);
+    cmd.args(["--abi", "--bin", "--bin-runtime", "--overwrite"]);
+    cmd.arg(docker_contract_path);
+    trace!("cmd: {cmd:?}");
+    let out = cmd.output()?;
+    trace!("stdout: {}", String::from_utf8_lossy(&out.stdout));
+    trace!("stderr: {}", String::from_utf8_lossy(&out.stderr));
+    ensure!(out.status.success(), "could not build benchmark: {out:#?}");
+
+    debug!("built benchmark {}", benchmark.name);
+    Ok(BuiltBenchmark { benchmark: benchmark.clone(), result: BuildResult { contract_bin_path } })
 }
 
 pub fn build_benchmarks(
-    benchmarks: &Vec<Benchmark>,
+    benchmarks: &[Benchmark],
     docker_executable: &Path,
     builds_path: &Path,
-) -> Result<Vec<BuiltBenchmark>, Box<dyn error::Error>> {
-    let benchmark_names = benchmarks
-        .iter()
-        .map(|b| b.name.clone())
-        .collect::<HashSet<_>>();
+    force: bool,
+) -> Result<Vec<BuiltBenchmark>> {
+    info!("building {} benchmarks...", benchmarks.len());
+    debug!("benchmarks: {}", benchmarks.iter().map(|b| &b.name).format(", "));
 
-    log::info!("building {} benchmarks...", benchmarks.len());
-    log::debug!(
-        "benchmarks: {}",
-        benchmark_names
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-
-    let mut results = Vec::<BuiltBenchmark>::new();
+    let mut results = Vec::<BuiltBenchmark>::with_capacity(benchmarks.len());
     for benchmark in benchmarks {
-        results.push(
-            match build_benchmark(
-                benchmark,
-                &BuildContext {
-                    docker_executable: docker_executable.to_path_buf(),
-                    contract_path: benchmark.contract.clone(),
-                    contract_context_path: benchmark.build_context.clone(),
-                    build_path: builds_path.join(&benchmark.name),
-                },
-            ) {
-                Ok(res) => res,
-                Err(e) => {
-                    log::warn!("could not build benchmark {}: {e}", benchmark.name);
-                    continue;
-                }
+        results.push(build_benchmark(
+            benchmark,
+            force,
+            &BuildContext {
+                docker_executable: docker_executable.to_path_buf(),
+                contract_path: benchmark.contract.clone(),
+                contract_context_path: benchmark.build_context.clone(),
+                build_path: builds_path.join(&benchmark.name),
             },
-        );
+        )?);
     }
 
-    log::debug!(
-        "built {} benchmarks ({} successful)",
-        benchmarks.len(),
-        results.len()
-    );
+    debug!("built {} benchmarks", benchmarks.len());
     Ok(results)
 }
