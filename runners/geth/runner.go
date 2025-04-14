@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +49,9 @@ var cmd = &cobra.Command{
 		blockTime := config.CancunTime
 		rules := config.Rules(blockNumber, true, *blockTime)
 
-		statedb, err := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		var config1 *triedb.Config
+		db := rawdb.NewMemoryDatabase()
+		statedb, err := state.New(common.Hash{}, state.NewDatabase(triedb.NewDatabase(db, config1), nil))
 		check(err)
 
 		zeroValue := big.NewInt(0)
@@ -74,9 +77,11 @@ var cmd = &cobra.Command{
 			BaseFee:          &big.Int{},
 			WithdrawalsHash:  &zeroHash,
 			BlobGasUsed:      new(uint64),
-			ExcessBlobGas:    new(uint64),
+			ExcessBlobGas:    nil,
 			ParentBeaconRoot: &zeroHash,
+			RequestsHash: &zeroHash,
 		}
+		
 		blockContext := core.NewEVMBlockContext(&blockContextHeader, nil, &zeroAddress)
 
 		createMsg := core.Message{
@@ -92,13 +97,14 @@ var cmd = &cobra.Command{
 			AccessList:        []types.AccessTuple{},
 			BlobGasFeeCap:     zeroValue,
 			BlobHashes:        []common.Hash{},
-			SkipAccountChecks: false,
+			SetCodeAuthorizations: []types.SetCodeAuthorization{},
+			SkipNonceChecks: true,
+			SkipFromEOACheck: true,
 		}
-		txContext := core.NewEVMTxContext(&createMsg)
 
 		statedb.Prepare(rules, callerAddress, blockContext.Coinbase, &zeroAddress, vm.ActivePrecompiles(rules), createMsg.AccessList)
-		evm := vm.NewEVM(blockContext, txContext, statedb, config, vm.Config{})
-		_, contractAddress, _, err := evm.Create(vm.AccountRef(callerAddress), contractCodeBytes, gasLimit, uint256.NewInt(0))
+		evm := vm.NewEVM(blockContext, statedb, config, vm.Config{})
+		_, contractAddress, _, err := evm.Create(callerAddress, contractCodeBytes, gasLimit, uint256.NewInt(0))
 		check(err)
 
 		msg := core.Message{
@@ -114,14 +120,16 @@ var cmd = &cobra.Command{
 			AccessList:        []types.AccessTuple{},
 			BlobGasFeeCap:     zeroValue,
 			BlobHashes:        []common.Hash{},
-			SkipAccountChecks: false,
+			SetCodeAuthorizations: []types.SetCodeAuthorization{},
+			SkipNonceChecks: true,
+			SkipFromEOACheck: true,
 		}
 		for i := 0; i < numRuns; i++ {
 			snapshot := statedb.Snapshot()
 			statedb.Prepare(rules, msg.From, blockContext.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
 
 			start := time.Now()
-			_, _, err := evm.Call(vm.AccountRef(callerAddress), *msg.To, msg.Data, msg.GasLimit, uint256.MustFromBig(msg.Value))
+			_, _, err := evm.Call(callerAddress, *msg.To, msg.Data, msg.GasLimit, uint256.MustFromBig(msg.Value))
 			timeTaken := time.Since(start)
 
 			fmt.Println(float64(timeTaken.Microseconds()) / 1e3)
