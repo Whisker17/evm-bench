@@ -5,7 +5,7 @@ use revm::{
         primitives::{address, hex, Bytes, Env, LatestSpec, TransactTo},
         Contract, DummyHost, Interpreter, SharedMemory,
     },
-    primitives::{ExecutionResult, Output, ResultAndState},
+    primitives::{ExecutionResult, Output, ResultAndState, TxKind},
     Evm,
 };
 use std::{fs, path::PathBuf, time::Instant};
@@ -44,7 +44,7 @@ fn main() {
         .with_empty_db()
         .modify_tx_env(|tx| {
             tx.caller = caller;
-            tx.transact_to = TransactTo::create();
+            tx.transact_to = TxKind::Create;
             tx.data = creation_code;
         })
         .build();
@@ -61,11 +61,11 @@ fn main() {
 
     let mut run_env = Env::default();
     run_env.tx.caller = caller;
-    run_env.tx.transact_to = TransactTo::call(created_address);
+    run_env.tx.transact_to = TxKind::Call(created_address);
     run_env.tx.data = calldata;
 
     let contract =
-        Contract::new_env(&run_env, created_bytecode.clone(), created_bytecode.hash_slow());
+        Contract::new_env(&run_env, created_bytecode.clone(), Some(created_bytecode.hash_slow()));
     let mut host = DummyHost::new(run_env);
     let table = &make_instruction_table::<_, LatestSpec>();
 
