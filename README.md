@@ -6,15 +6,27 @@
 
 evm-bench makes it easy to compare EVM performance in a scalable, standardized, and portable way.
 
-|                         | revm     | pyrevm   | geth      | ethereumjs | py-evm.pypy | py-evm.cpython | evmone |
-| ----------------------- | -------- | -------- | --------- | ---------- | ----------- | -------------- | ------ |
-| **sum**                 | 58.966ms | 79.591ms | 149.229ms | 6.392s     | N/A         | N/A            | N/A    |
-| **relative**            | 1.000x   | 1.350x   | 2.531x    | 108.406x   | N/A         | N/A            | N/A    |
-| erc20.approval-transfer | 5.952ms  | 7.818ms  | 12.693ms  | 462.744ms  |             |                |        |
-| erc20.mint              | 3.560ms  | 6.333ms  | 11.060ms  | 467.701ms  |             |                |        |
-| erc20.transfer          | 6.877ms  | 9.899ms  | 16.548ms  | 650.097ms  |             |                |        |
-| snailtracer             | 40.542ms | 52.818ms | 102.535ms | 4.525s     |             |                |        |
-| ten-thousand-hashes     | 2.036ms  | 2.723ms  | 6.394ms   | 286.452ms  |             |                |        |
+|                         | pyrevm   | revm     | geth      | ethereumjs | py-evm.cpython |
+| ----------------------- | -------- | -------- | --------- | ---------- | -------------- |
+| **sum**                 | 65.857ms | 79.743ms | 132.941ms | 12.749s    | 18.034s        |
+| **relative**            | 1.000x   | 1.211x   | 2.019x    | 193.582x   | 273.841x       |
+| erc20.approval-transfer | 6.271ms  | 6.335ms  | 11.738ms  | 1.009s     | 908.891ms      |
+| erc20.mint              | 4.944ms  | 5.428ms  | 10.594ms  | 1.948s     | 930.605ms      |
+| erc20.transfer          | 7.978ms  | 8.019ms  | 14.523ms  | 2.097s     | 1.324s         |
+| snailtracer             | 42.849ms | 55.374ms | 88.801ms  | 7.491s     | 14.067s        |
+| ten-thousand-hashes     | 3.815ms  | 4.588ms  | 7.286ms   | 204.837ms  | 804.090ms      |
+
+Benchmarked on 2026-03-07 with:
+
+- `pyrevm` `0.3.7`
+- `revm` `36.0.0`
+- `go-ethereum` `v1.17.1`
+- `@ethereumjs/common`, `@ethereumjs/evm`, `@ethereumjs/util`, `@ethereumjs/vm` `10.1.1`
+- `py-evm` `0.12.1b1`
+
+This rerun used the result artifact at `outputs/results/2026-03-07-latest.evm-bench.results.json`.
+`evmone` was updated to `0.19.0` but not included in this run because `cmake` was unavailable in the environment.
+`py-evm.pypy` was not included because `pypy3` was unavailable in the environment.
 
 To reproduce these results, check out [usage with the evm-bench suite below](#with-the-evm-bench-suite).
 

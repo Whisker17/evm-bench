@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
 
-import { VM } from "@ethereumjs/vm";
+import { createVM } from "@ethereumjs/vm";
 import { MAX_INTEGER_BIGINT, hexToBytes } from "@ethereumjs/util";
-import { Chain, Common, Hardfork } from "@ethereumjs/common";
+import { Common, Hardfork, Mainnet } from "@ethereumjs/common";
 
 import { program } from "commander";
 
@@ -24,8 +24,8 @@ async function main() {
     });
     const contractCodeBytes = hexToBytes("0x" + contractCode);
 
-    const vm = await VM.create({
-        common: new Common({ chain: Chain.Mainnet, hardfork: Hardfork.Cancun }),
+    const vm = await createVM({
+        common: new Common({ chain: Mainnet, hardfork: Hardfork.Prague }),
     });
 
     const createResult = await vm.evm.runCall({
