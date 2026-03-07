@@ -6,8 +6,8 @@ authors = ["Ziyad Edher <ziyad.edher@gmail.com>"]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.10"
-pyrevm = { git = "https://github.com/gakonst/pyrevm.git", branch = "master" }
+python = ">=3.9,<4.0"
+pyrevm = "^0.3.7"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "memory.expand-copy",
+  "contract": "MemoryExpandCopy.sol",
+  "num-runs": 5,
+  "calldata": "30627b7c"
+}

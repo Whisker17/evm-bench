@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "storage.write-many",
+  "contract": "StorageWriteMany.sol",
+  "num-runs": 5,
+  "calldata": "30627b7c"
+}

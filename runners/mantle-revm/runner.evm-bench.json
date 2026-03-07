@@ -1,0 +1,5 @@
+{
+  "$schema": "../schema.json",
+  "name": "mantle-revm",
+  "entry": "entry.sh"
+}
