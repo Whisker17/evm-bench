@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "logging.log-burst",
+  "contract": "LogBurst.sol",
+  "num-runs": 5,
+  "calldata": "30627b7c"
+}

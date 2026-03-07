@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "calls.fanout-aggregate",
+  "contract": "FanoutAggregate.sol",
+  "num-runs": 3,
+  "calldata": "30627b7c"
+}
