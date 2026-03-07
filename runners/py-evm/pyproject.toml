@@ -6,8 +6,10 @@ authors = ["Ziyad Edher <ziyad.edher@gmail.com>"]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.9,<4.0"
 py-evm = "^0.12.1b1"
+eth-utils = "<5"
+lru-dict = { version = "^1.4.1", python = ">=3.9" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
