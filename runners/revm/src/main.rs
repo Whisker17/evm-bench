@@ -1,12 +1,9 @@
 use clap::Parser;
 use revm::{
-    interpreter::{
-        opcode::make_instruction_table,
-        primitives::{address, hex, Bytes, Env, LatestSpec, TransactTo},
-        Contract, DummyHost, Interpreter, SharedMemory,
-    },
-    primitives::{ExecutionResult, Output, ResultAndState, TxKind},
-    Evm,
+    context::{result::ExecutionResult, Context, TxEnv},
+    database::{CacheDB, EmptyDB},
+    primitives::{address, hardfork::SpecId, hex, Bytes, TxKind},
+    ExecuteCommitEvm, MainBuilder, MainContext,
 };
 use std::{fs, path::PathBuf, time::Instant};
 
@@ -38,53 +35,55 @@ fn main() {
         hex::decode(args.calldata.trim()).expect("could not hex decode calldata").into();
 
     let caller = address!("1000000000000000000000000000000000000001");
+    let spec_id = SpecId::OSAKA;
 
-    // Set up and run the EVM to create the contract.
-    let mut evm = Evm::builder()
-        .with_empty_db()
-        .modify_tx_env(|tx| {
-            tx.caller = caller;
-            tx.transact_to = TxKind::Create;
-            tx.data = creation_code;
+    let ctx = Context::mainnet()
+        .modify_cfg_chained(|cfg| {
+            cfg.set_spec_and_mainnet_gas_params(spec_id);
+            cfg.tx_gas_limit_cap = Some(u64::MAX);
         })
-        .build();
-    let ResultAndState { result, state } = evm.transact().expect("EVM failed");
-    let ExecutionResult::Success { output, .. } = result else {
-        panic!("failed executing bytecode: {result:#?}");
+        .with_db(CacheDB::<EmptyDB>::default());
+    let mut evm = ctx.build_mainnet();
+
+    let deploy_result = evm
+        .transact_commit(
+            TxEnv {
+                caller,
+                kind: TxKind::Create,
+                data: creation_code,
+                nonce: 0,
+                ..TxEnv::new_bench()
+            },
+        )
+        .expect("failed to deploy contract");
+
+    let created_address = match deploy_result {
+        ExecutionResult::Success { .. } => deploy_result
+            .created_address()
+            .expect("missing created address after successful deployment"),
+        _ => panic!("failed creating contract: {deploy_result:#?}"),
     };
-    let Output::Create(_, Some(created_address)) = output else {
-        panic!("failed creating contract: {output:#?}");
-    };
 
-    // Run the created bytecode with just the interpreter.
-    let created_bytecode = state[&created_address].info.code.as_ref().expect("failed creation");
-
-    let mut run_env = Env::default();
-    run_env.tx.caller = caller;
-    run_env.tx.transact_to = TxKind::Call(created_address);
-    run_env.tx.data = calldata;
-
-    let contract =
-        Contract::new_env(&run_env, created_bytecode.clone(), Some(created_bytecode.hash_slow()));
-    let mut host = DummyHost::new(run_env);
-    let table = &make_instruction_table::<_, LatestSpec>();
-
-    for _ in 0..args.num_runs {
-        let mut interpreter = Interpreter::new(contract.clone(), u64::MAX, false);
-
+    for run_index in 0..args.num_runs {
         let timer = Instant::now();
-        let action = interpreter.run(SharedMemory::new(), table, &mut host);
+        let call_result = evm
+            .transact_commit(
+                TxEnv {
+                    caller,
+                    kind: TxKind::Call(created_address),
+                    data: calldata.clone(),
+                    nonce: 1 + u64::from(run_index),
+                    ..TxEnv::new_bench()
+                },
+            )
+            .expect("failed to execute call transaction");
         let dur = timer.elapsed();
 
         assert!(
-            interpreter.instruction_result.is_ok(),
-            "interpreter failed with {:?}",
-            interpreter.instruction_result
+            matches!(call_result, ExecutionResult::Success { .. }),
+            "transaction failed: {call_result:#?}"
         );
-        assert!(action.is_return(), "unexpected exit action: {action:?}");
 
-        host.clear();
-
-        println!("{}", dur.as_secs_f64() * 1000.0)
+        println!("{}", dur.as_secs_f64() * 1000.0);
     }
 }

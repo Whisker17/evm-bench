@@ -99,7 +99,6 @@ var cmd = &cobra.Command{
 			BlobHashes:        []common.Hash{},
 			SetCodeAuthorizations: []types.SetCodeAuthorization{},
 			SkipNonceChecks: true,
-			SkipFromEOACheck: true,
 		}
 
 		statedb.Prepare(rules, callerAddress, blockContext.Coinbase, &zeroAddress, vm.ActivePrecompiles(rules), createMsg.AccessList)
@@ -122,7 +121,6 @@ var cmd = &cobra.Command{
 			BlobHashes:        []common.Hash{},
 			SetCodeAuthorizations: []types.SetCodeAuthorization{},
 			SkipNonceChecks: true,
-			SkipFromEOACheck: true,
 		}
 		for i := 0; i < numRuns; i++ {
 			snapshot := statedb.Snapshot()
