@@ -1,0 +1,22 @@
+[package]
+name = "runner-mantle-revm"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
+revm = { git = "https://github.com/mantle-xyz/revm.git", rev = "f13cb92c721681af99b4c5300d15351d2ab16d75" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.runner]
+inherits = "release"
+opt-level = 3
+lto = "fat"
+panic = "abort"
+debug = "line-tables-only"
+codegen-units = 1
