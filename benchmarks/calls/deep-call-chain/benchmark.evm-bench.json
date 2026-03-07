@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "calls.deep-call-chain",
+  "contract": "DeepCallChain.sol",
+  "num-runs": 3,
+  "calldata": "30627b7c"
+}

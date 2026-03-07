@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "erc721.mint-transfer",
+  "contract": "ERC721MintTransfer.sol",
+  "num-runs": 3,
+  "calldata": "30627b7c"
+}

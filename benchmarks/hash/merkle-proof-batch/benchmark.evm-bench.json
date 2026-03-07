@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "hash.merkle-proof-batch",
+  "contract": "MerkleProofBatch.sol",
+  "num-runs": 5,
+  "calldata": "30627b7c"
+}

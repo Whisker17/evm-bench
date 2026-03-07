@@ -3,25 +3,12 @@
 use anyhow::{bail, Context as _, Result};
 use clap::Parser;
 use revm::{
-    context::{Context as RevmContext, TxEnv},
-    context_interface::ContextTr,
-    database::CacheDB,
-    database_interface::{BENCH_CALLER, EmptyDB},
-    interpreter::{
-        host::DummyHost,
-        instruction_table,
-        interpreter::{EthInterpreter, ExtBytecode},
-        CallInput, InputsImpl, Interpreter, SharedMemory,
-    },
-    primitives::{hardfork::SpecId, hex, Address, Bytes, U256},
-    state::Bytecode,
-    Database, ExecuteCommitEvm, MainBuilder, MainContext,
+    context::{result::ExecutionResult, Context, TxEnv},
+    database::{CacheDB, EmptyDB},
+    primitives::{address, hardfork::SpecId, hex, Bytes, TxKind},
+    ExecuteCommitEvm, MainBuilder, MainContext,
 };
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::{fs, path::{Path, PathBuf}, time::Instant};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -52,83 +39,55 @@ fn load_contract_code(path: &Path) -> Result<Bytes> {
 }
 
 fn run_benchmark_from_bytes(creation_code: Bytes, calldata: Bytes, num_runs: u64) -> Result<Vec<f64>> {
-    let (contract_address, runtime_bytecode) = deploy_contract(creation_code)?;
-    benchmark_runtime(contract_address, runtime_bytecode, calldata, num_runs)
-}
+    let caller = address!("1000000000000000000000000000000000000001");
+    let spec_id = SpecId::OSAKA;
 
-fn deploy_contract(creation_code: Bytes) -> Result<(Address, Bytecode)> {
-    let mut evm = RevmContext::mainnet()
-        .with_db(CacheDB::<EmptyDB>::default())
-        .build_mainnet();
+    let ctx = Context::mainnet()
+        .modify_cfg_chained(|cfg| {
+            cfg.spec = spec_id;
+            cfg.tx_gas_limit_cap = Some(u64::MAX);
+        })
+        .with_db(CacheDB::<EmptyDB>::default());
+    let mut evm = ctx.build_mainnet();
 
-    let deployment = TxEnv::builder_for_bench()
-        .create()
-        .data(creation_code)
-        .build_fill();
+    let deploy_result = evm
+        .transact_commit(
+            TxEnv {
+                caller,
+                kind: TxKind::Create,
+                data: creation_code,
+                nonce: 0,
+                ..TxEnv::new_bench()
+            },
+        )
+        .context("mantle-revm failed to deploy contract")?;
 
-    let deployment_result = evm
-        .transact_commit(deployment)
-        .context("mantle-revm failed to execute deployment transaction")?;
+    let created_address = match deploy_result {
+        ExecutionResult::Success { .. } => deploy_result
+            .created_address()
+            .context("missing created address after successful deployment")?,
+        _ => bail!("failed creating contract: {deploy_result:#?}"),
+    };
 
-    if !deployment_result.is_success() {
-        bail!("mantle-revm deployment did not succeed: {deployment_result:?}");
-    }
-
-    let created_address = deployment_result
-        .created_address()
-        .context("mantle-revm deployment did not return a created address")?;
-
-    let runtime_bytecode = evm
-        .db_mut()
-        .basic(created_address)
-        .context("mantle-revm could not load created account from database")?
-        .context("mantle-revm created account missing from database")?
-        .code
-        .context("mantle-revm created account missing runtime bytecode")?;
-
-    Ok((created_address, runtime_bytecode))
-}
-
-fn benchmark_runtime(
-    contract_address: Address,
-    runtime_bytecode: Bytecode,
-    calldata: Bytes,
-    num_runs: u64,
-) -> Result<Vec<f64>> {
-    let table = instruction_table::<EthInterpreter, DummyHost>();
-    let mut host = DummyHost;
     let mut run_times = Vec::with_capacity(num_runs as usize);
 
-    for _ in 0..num_runs {
-        let mut interpreter = Interpreter::<EthInterpreter>::new(
-            SharedMemory::new(),
-            ExtBytecode::new(runtime_bytecode.clone()),
-            InputsImpl {
-                target_address: contract_address,
-                bytecode_address: Some(contract_address),
-                caller_address: BENCH_CALLER,
-                input: CallInput::Bytes(calldata.clone()),
-                call_value: U256::ZERO,
-            },
-            false,
-            SpecId::default(),
-            u64::MAX,
-        );
-
+    for run_index in 0..num_runs {
         let started_at = Instant::now();
-        let action = interpreter.run_plain(&table, &mut host);
+        let call_result = evm
+            .transact_commit(
+                TxEnv {
+                    caller,
+                    kind: TxKind::Call(created_address),
+                    data: calldata.clone(),
+                    nonce: 1 + run_index,
+                    ..TxEnv::new_bench()
+                },
+            )
+            .context("mantle-revm failed to execute call transaction")?;
         let elapsed = started_at.elapsed();
 
-        if !action.is_return() {
-            bail!("mantle-revm interpreter returned unexpected action: {action:?}");
-        }
-
-        let result = action
-            .instruction_result()
-            .context("mantle-revm interpreter returned without an instruction result")?;
-
-        if !result.is_ok() {
-            bail!("mantle-revm interpreter failed with {result:?}");
+        if !matches!(call_result, ExecutionResult::Success { .. }) {
+            bail!("mantle-revm transaction failed: {call_result:#?}");
         }
 
         run_times.push(elapsed.as_secs_f64() * 1000.0);

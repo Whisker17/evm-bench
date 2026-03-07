@@ -1,0 +1,7 @@
+{
+  "$schema": "../../schema.json",
+  "name": "create2.create2-many",
+  "contract": "Create2Many.sol",
+  "num-runs": 3,
+  "calldata": "30627b7c"
+}

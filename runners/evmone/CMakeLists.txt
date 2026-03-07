@@ -9,4 +9,5 @@ CPMAddPackage("gh:ethereum/evmone@0.19.0")
 project(evmone-runner LANGUAGES CXX C)
 
 add_executable(runner runner.cpp)
-target_link_libraries(runner PRIVATE CLI11::CLI11 evmone)
+target_link_libraries(runner PRIVATE CLI11::CLI11 evmone evmone_precompiles)
+target_include_directories(runner PRIVATE "${evmone_SOURCE_DIR}/lib")
