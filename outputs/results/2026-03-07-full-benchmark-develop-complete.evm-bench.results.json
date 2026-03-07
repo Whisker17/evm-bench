@@ -1,0 +1,928 @@
+{
+  "benchmarks": {
+    "ten-thousand-hashes": {
+      "name": "ten-thousand-hashes",
+      "solc_version": "stable",
+      "num_runs": 5,
+      "contract": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/ten-thousand-hashes/TenThousandHashes.sol",
+      "build_context": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/ten-thousand-hashes",
+      "calldata": "0x30627b7c"
+    },
+    "erc20.mint": {
+      "name": "erc20.mint",
+      "solc_version": "stable",
+      "num_runs": 5,
+      "contract": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20/mint/ERC20Mint.sol",
+      "build_context": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20",
+      "calldata": "0x30627b7c"
+    },
+    "erc20.transfer": {
+      "name": "erc20.transfer",
+      "solc_version": "stable",
+      "num_runs": 5,
+      "contract": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20/transfer/ERC20Transfer.sol",
+      "build_context": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20",
+      "calldata": "0x30627b7c"
+    },
+    "erc20.approval-transfer": {
+      "name": "erc20.approval-transfer",
+      "solc_version": "stable",
+      "num_runs": 5,
+      "contract": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20/approval-transfer/ERC20ApprovalTransfer.sol",
+      "build_context": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/erc20",
+      "calldata": "0x30627b7c"
+    },
+    "snailtracer": {
+      "name": "snailtracer",
+      "solc_version": "0.4.26",
+      "num_runs": 1,
+      "contract": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/snailtracer/SnailTracer.sol",
+      "build_context": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/benchmarks/snailtracer",
+      "calldata": "0x30627b7c"
+    }
+  },
+  "runners": {
+    "ethereumjs": {
+      "name": "ethereumjs",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/ethereumjs/entry.sh"
+    },
+    "py-evm.cpython": {
+      "name": "py-evm.cpython",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/py-evm/cpython/entry.sh"
+    },
+    "evmone": {
+      "name": "evmone",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/evmone/entry.sh"
+    },
+    "geth": {
+      "name": "geth",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/geth/entry.sh"
+    },
+    "mantle-revm": {
+      "name": "mantle-revm",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/mantle-revm/entry.sh"
+    },
+    "py-evm.pypy": {
+      "name": "py-evm.pypy",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/py-evm/pypy/entry.sh"
+    },
+    "revm": {
+      "name": "revm",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/revm/entry.sh"
+    },
+    "pyrevm": {
+      "name": "pyrevm",
+      "entry": "/Users/whisker/Work/src/Whisker17/evm-bench/.worktrees/full-benchmark-develop/runners/pyrevm/entry.sh"
+    }
+  },
+  "runs": {
+    "ethereumjs": {
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 2,
+            "nanos": 384498417
+          },
+          {
+            "secs": 2,
+            "nanos": 283845958
+          },
+          {
+            "secs": 2,
+            "nanos": 258173083
+          },
+          {
+            "secs": 2,
+            "nanos": 368247500
+          },
+          {
+            "secs": 2,
+            "nanos": 256731500
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 8,
+            "nanos": 693292334
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 1,
+            "nanos": 127661250
+          },
+          {
+            "secs": 1,
+            "nanos": 122535125
+          },
+          {
+            "secs": 1,
+            "nanos": 69589875
+          },
+          {
+            "secs": 1,
+            "nanos": 281856583
+          },
+          {
+            "secs": 1,
+            "nanos": 203998292
+          }
+        ]
+      },
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 217367625
+          },
+          {
+            "secs": 0,
+            "nanos": 203449250
+          },
+          {
+            "secs": 0,
+            "nanos": 199643083
+          },
+          {
+            "secs": 0,
+            "nanos": 197549750
+          },
+          {
+            "secs": 0,
+            "nanos": 199691875
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 2,
+            "nanos": 596576666
+          },
+          {
+            "secs": 2,
+            "nanos": 517204667
+          },
+          {
+            "secs": 2,
+            "nanos": 364795375
+          },
+          {
+            "secs": 2,
+            "nanos": 400984292
+          },
+          {
+            "secs": 2,
+            "nanos": 191650792
+          }
+        ]
+      }
+    },
+    "geth": {
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 88245000
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 11374000
+          },
+          {
+            "secs": 0,
+            "nanos": 11052000
+          },
+          {
+            "secs": 0,
+            "nanos": 10832000
+          },
+          {
+            "secs": 0,
+            "nanos": 10868000
+          },
+          {
+            "secs": 0,
+            "nanos": 10813000
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 9320000
+          },
+          {
+            "secs": 0,
+            "nanos": 8765000
+          },
+          {
+            "secs": 0,
+            "nanos": 9567000
+          },
+          {
+            "secs": 0,
+            "nanos": 8914000
+          },
+          {
+            "secs": 0,
+            "nanos": 9237000
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 15403000
+          },
+          {
+            "secs": 0,
+            "nanos": 14665000
+          },
+          {
+            "secs": 0,
+            "nanos": 16634000
+          },
+          {
+            "secs": 0,
+            "nanos": 14087000
+          },
+          {
+            "secs": 0,
+            "nanos": 14278000
+          }
+        ]
+      },
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 7597000
+          },
+          {
+            "secs": 0,
+            "nanos": 7227000
+          },
+          {
+            "secs": 0,
+            "nanos": 7510000
+          },
+          {
+            "secs": 0,
+            "nanos": 7065000
+          },
+          {
+            "secs": 0,
+            "nanos": 7049000
+          }
+        ]
+      }
+    },
+    "revm": {
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 9090292
+          },
+          {
+            "secs": 0,
+            "nanos": 7175375
+          },
+          {
+            "secs": 0,
+            "nanos": 7079208
+          },
+          {
+            "secs": 0,
+            "nanos": 6441166
+          },
+          {
+            "secs": 0,
+            "nanos": 5887875
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 12651333
+          },
+          {
+            "secs": 0,
+            "nanos": 12223625
+          },
+          {
+            "secs": 0,
+            "nanos": 8121292
+          },
+          {
+            "secs": 0,
+            "nanos": 7626875
+          },
+          {
+            "secs": 0,
+            "nanos": 8586458
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 10375541
+          },
+          {
+            "secs": 0,
+            "nanos": 7355459
+          },
+          {
+            "secs": 0,
+            "nanos": 6643583
+          },
+          {
+            "secs": 0,
+            "nanos": 6163792
+          },
+          {
+            "secs": 0,
+            "nanos": 5335542
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 68328500
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 12304042
+          },
+          {
+            "secs": 0,
+            "nanos": 10121333
+          },
+          {
+            "secs": 0,
+            "nanos": 8116333
+          },
+          {
+            "secs": 0,
+            "nanos": 7249667
+          },
+          {
+            "secs": 0,
+            "nanos": 6388042
+          }
+        ]
+      }
+    },
+    "mantle-revm": {
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 21193458
+          },
+          {
+            "secs": 0,
+            "nanos": 14995833
+          },
+          {
+            "secs": 0,
+            "nanos": 11324000
+          },
+          {
+            "secs": 0,
+            "nanos": 9910959
+          },
+          {
+            "secs": 0,
+            "nanos": 8550709
+          }
+        ]
+      },
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 9834917
+          },
+          {
+            "secs": 0,
+            "nanos": 8211625
+          },
+          {
+            "secs": 0,
+            "nanos": 8342834
+          },
+          {
+            "secs": 0,
+            "nanos": 7066292
+          },
+          {
+            "secs": 0,
+            "nanos": 6049083
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 12874458
+          },
+          {
+            "secs": 0,
+            "nanos": 9778458
+          },
+          {
+            "secs": 0,
+            "nanos": 7977292
+          },
+          {
+            "secs": 0,
+            "nanos": 6743500
+          },
+          {
+            "secs": 0,
+            "nanos": 6141625
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 14139041
+          },
+          {
+            "secs": 0,
+            "nanos": 11259083
+          },
+          {
+            "secs": 0,
+            "nanos": 9587542
+          },
+          {
+            "secs": 0,
+            "nanos": 8248625
+          },
+          {
+            "secs": 0,
+            "nanos": 7285042
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 64805833
+          }
+        ]
+      }
+    },
+    "pyrevm": {
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 4915459
+          },
+          {
+            "secs": 0,
+            "nanos": 4920125
+          },
+          {
+            "secs": 0,
+            "nanos": 4837917
+          },
+          {
+            "secs": 0,
+            "nanos": 5087458
+          },
+          {
+            "secs": 0,
+            "nanos": 4886250
+          }
+        ]
+      },
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 3833500
+          },
+          {
+            "secs": 0,
+            "nanos": 3905375
+          },
+          {
+            "secs": 0,
+            "nanos": 3902708
+          },
+          {
+            "secs": 0,
+            "nanos": 3842042
+          },
+          {
+            "secs": 0,
+            "nanos": 3937875
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 42996083
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 8012916
+          },
+          {
+            "secs": 0,
+            "nanos": 8385291
+          },
+          {
+            "secs": 0,
+            "nanos": 8305291
+          },
+          {
+            "secs": 0,
+            "nanos": 8278167
+          },
+          {
+            "secs": 0,
+            "nanos": 8375459
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 6419250
+          },
+          {
+            "secs": 0,
+            "nanos": 6315042
+          },
+          {
+            "secs": 0,
+            "nanos": 6194708
+          },
+          {
+            "secs": 0,
+            "nanos": 6230709
+          },
+          {
+            "secs": 0,
+            "nanos": 6125667
+          }
+        ]
+      }
+    },
+    "py-evm.pypy": {
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 314396291
+          },
+          {
+            "secs": 0,
+            "nanos": 70406416
+          },
+          {
+            "secs": 0,
+            "nanos": 89211375
+          },
+          {
+            "secs": 0,
+            "nanos": 79551792
+          },
+          {
+            "secs": 0,
+            "nanos": 69955958
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 717695416
+          },
+          {
+            "secs": 0,
+            "nanos": 136301166
+          },
+          {
+            "secs": 0,
+            "nanos": 88398292
+          },
+          {
+            "secs": 0,
+            "nanos": 91195667
+          },
+          {
+            "secs": 0,
+            "nanos": 88403750
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 642227958
+          },
+          {
+            "secs": 0,
+            "nanos": 93738750
+          },
+          {
+            "secs": 0,
+            "nanos": 93397542
+          },
+          {
+            "secs": 0,
+            "nanos": 118008667
+          },
+          {
+            "secs": 0,
+            "nanos": 94919500
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 724972917
+          },
+          {
+            "secs": 0,
+            "nanos": 140372417
+          },
+          {
+            "secs": 0,
+            "nanos": 162826667
+          },
+          {
+            "secs": 0,
+            "nanos": 137211750
+          },
+          {
+            "secs": 0,
+            "nanos": 135992250
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 2,
+            "nanos": 393105459
+          }
+        ]
+      }
+    },
+    "evmone": {
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 2989000
+          },
+          {
+            "secs": 0,
+            "nanos": 2911580
+          },
+          {
+            "secs": 0,
+            "nanos": 2922580
+          },
+          {
+            "secs": 0,
+            "nanos": 2918210
+          },
+          {
+            "secs": 0,
+            "nanos": 2920290
+          }
+        ]
+      },
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 26023100
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 2640460
+          },
+          {
+            "secs": 0,
+            "nanos": 2459670
+          },
+          {
+            "secs": 0,
+            "nanos": 2456580
+          },
+          {
+            "secs": 0,
+            "nanos": 2418330
+          },
+          {
+            "secs": 0,
+            "nanos": 2583960
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 4452830
+          },
+          {
+            "secs": 0,
+            "nanos": 4315960
+          },
+          {
+            "secs": 0,
+            "nanos": 4409040
+          },
+          {
+            "secs": 0,
+            "nanos": 4291750
+          },
+          {
+            "secs": 0,
+            "nanos": 4272000
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 5274830
+          },
+          {
+            "secs": 0,
+            "nanos": 5014500
+          },
+          {
+            "secs": 0,
+            "nanos": 4942290
+          },
+          {
+            "secs": 0,
+            "nanos": 5021170
+          },
+          {
+            "secs": 0,
+            "nanos": 5054210
+          }
+        ]
+      }
+    },
+    "py-evm.cpython": {
+      "snailtracer": {
+        "run_times": [
+          {
+            "secs": 7,
+            "nanos": 200969833
+          }
+        ]
+      },
+      "ten-thousand-hashes": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 400305709
+          },
+          {
+            "secs": 0,
+            "nanos": 391169167
+          },
+          {
+            "secs": 0,
+            "nanos": 420167916
+          },
+          {
+            "secs": 0,
+            "nanos": 393556125
+          },
+          {
+            "secs": 0,
+            "nanos": 390062417
+          }
+        ]
+      },
+      "erc20.approval-transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 447949542
+          },
+          {
+            "secs": 0,
+            "nanos": 430807917
+          },
+          {
+            "secs": 0,
+            "nanos": 427203875
+          },
+          {
+            "secs": 0,
+            "nanos": 430173334
+          },
+          {
+            "secs": 0,
+            "nanos": 423341708
+          }
+        ]
+      },
+      "erc20.transfer": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 624766667
+          },
+          {
+            "secs": 0,
+            "nanos": 627283334
+          },
+          {
+            "secs": 0,
+            "nanos": 622222417
+          },
+          {
+            "secs": 0,
+            "nanos": 622174709
+          },
+          {
+            "secs": 0,
+            "nanos": 622269625
+          }
+        ]
+      },
+      "erc20.mint": {
+        "run_times": [
+          {
+            "secs": 0,
+            "nanos": 470345292
+          },
+          {
+            "secs": 0,
+            "nanos": 459654000
+          },
+          {
+            "secs": 0,
+            "nanos": 451438167
+          },
+          {
+            "secs": 0,
+            "nanos": 458990584
+          },
+          {
+            "secs": 0,
+            "nanos": 448961083
+          }
+        ]
+      }
+    }
+  }
+}

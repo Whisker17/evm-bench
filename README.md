@@ -6,27 +6,27 @@
 
 evm-bench makes it easy to compare EVM performance in a scalable, standardized, and portable way.
 
-|                         | pyrevm   | revm     | geth      | ethereumjs | py-evm.cpython |
-| ----------------------- | -------- | -------- | --------- | ---------- | -------------- |
-| **sum**                 | 65.857ms | 79.743ms | 132.941ms | 12.749s    | 18.034s        |
-| **relative**            | 1.000x   | 1.211x   | 2.019x    | 193.582x   | 273.841x       |
-| erc20.approval-transfer | 6.271ms  | 6.335ms  | 11.738ms  | 1.009s     | 908.891ms      |
-| erc20.mint              | 4.944ms  | 5.428ms  | 10.594ms  | 1.948s     | 930.605ms      |
-| erc20.transfer          | 7.978ms  | 8.019ms  | 14.523ms  | 2.097s     | 1.324s         |
-| snailtracer             | 42.849ms | 55.374ms | 88.801ms  | 7.491s     | 14.067s        |
-| ten-thousand-hashes     | 3.815ms  | 4.588ms  | 7.286ms   | 204.837ms  | 804.090ms      |
+|                         | evmone   | pyrevm   | revm      | mantle-revm | geth      | py-evm.pypy | py-evm.cpython | ethereumjs |
+| ----------------------- | -------- | -------- | --------- | ----------- | --------- | ----------- | -------------- | ---------- |
+| **sum**                 | 40.877ms | 66.338ms | 101.316ms | 104.709ms   | 130.696ms | 3.211s      | 9.114s         | 14.783s    |
+| **relative**            | 1.000x   | 1.623x   | 2.479x    | 2.562x      | 3.197x    | 78.551x     | 222.951x       | 361.634x   |
+| erc20.approval-transfer | 4.348ms  | 6.257ms  | 8.836ms   | 10.104ms    | 10.988ms  | 224.399ms   | 431.895ms      | 1.161s     |
+| erc20.mint              | 2.512ms  | 4.929ms  | 7.175ms   | 8.703ms     | 9.161ms   | 208.458ms   | 457.878ms      | 2.414s     |
+| erc20.transfer          | 5.061ms  | 8.271ms  | 9.842ms   | 13.195ms    | 15.013ms  | 260.275ms   | 623.743ms      | 2.310s     |
+| snailtracer             | 26.023ms | 42.996ms | 68.329ms  | 64.806ms    | 88.245ms  | 2.393s      | 7.201s         | 8.693s     |
+| ten-thousand-hashes     | 2.932ms  | 3.884ms  | 7.135ms   | 7.901ms     | 7.290ms   | 124.704ms   | 399.052ms      | 203.540ms  |
 
 Benchmarked on 2026-03-07 with:
 
+- `evmone` `0.19.0`
 - `pyrevm` `0.3.7`
 - `revm` `36.0.0`
+- `mantle-revm` (`mantle-xyz/revm` `f13cb92`)
 - `go-ethereum` `v1.17.1`
 - `@ethereumjs/common`, `@ethereumjs/evm`, `@ethereumjs/util`, `@ethereumjs/vm` `10.1.1`
-- `py-evm` `0.12.1b1`
+- `py-evm` `0.12.1b1` on CPython 3.13 and PyPy 3.10
 
-This rerun used the result artifact at `outputs/results/2026-03-07-latest.evm-bench.results.json`.
-`evmone` was updated to `0.19.0` but not included in this run because `cmake` was unavailable in the environment.
-`py-evm.pypy` was not included because `pypy3` was unavailable in the environment.
+This comprehensive rerun includes all current runners on `develop` and uses the result artifact at `outputs/results/2026-03-07-full-benchmark-develop-complete.evm-bench.results.json`.
 
 To reproduce these results, check out [usage with the evm-bench suite below](#with-the-evm-bench-suite).
 

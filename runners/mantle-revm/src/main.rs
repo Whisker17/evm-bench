@@ -4,18 +4,10 @@ use anyhow::{bail, Context as _, Result};
 use clap::Parser;
 use revm::{
     context::{Context as RevmContext, TxEnv},
-    context_interface::ContextTr,
     database::CacheDB,
-    database_interface::{BENCH_CALLER, EmptyDB},
-    interpreter::{
-        host::DummyHost,
-        instruction_table,
-        interpreter::{EthInterpreter, ExtBytecode},
-        CallInput, InputsImpl, Interpreter, SharedMemory,
-    },
-    primitives::{hardfork::SpecId, hex, Address, Bytes, U256},
-    state::Bytecode,
-    Database, ExecuteCommitEvm, MainBuilder, MainContext,
+    database_interface::EmptyDB,
+    primitives::{hex, Bytes, TxKind},
+    ExecuteCommitEvm, MainBuilder, MainContext,
 };
 use std::{
     fs,
@@ -52,11 +44,6 @@ fn load_contract_code(path: &Path) -> Result<Bytes> {
 }
 
 fn run_benchmark_from_bytes(creation_code: Bytes, calldata: Bytes, num_runs: u64) -> Result<Vec<f64>> {
-    let (contract_address, runtime_bytecode) = deploy_contract(creation_code)?;
-    benchmark_runtime(contract_address, runtime_bytecode, calldata, num_runs)
-}
-
-fn deploy_contract(creation_code: Bytes) -> Result<(Address, Bytecode)> {
     let mut evm = RevmContext::mainnet()
         .with_db(CacheDB::<EmptyDB>::default())
         .build_mainnet();
@@ -78,57 +65,20 @@ fn deploy_contract(creation_code: Bytes) -> Result<(Address, Bytecode)> {
         .created_address()
         .context("mantle-revm deployment did not return a created address")?;
 
-    let runtime_bytecode = evm
-        .db_mut()
-        .basic(created_address)
-        .context("mantle-revm could not load created account from database")?
-        .context("mantle-revm created account missing from database")?
-        .code
-        .context("mantle-revm created account missing runtime bytecode")?;
-
-    Ok((created_address, runtime_bytecode))
-}
-
-fn benchmark_runtime(
-    contract_address: Address,
-    runtime_bytecode: Bytecode,
-    calldata: Bytes,
-    num_runs: u64,
-) -> Result<Vec<f64>> {
-    let table = instruction_table::<EthInterpreter, DummyHost>();
-    let mut host = DummyHost;
     let mut run_times = Vec::with_capacity(num_runs as usize);
 
-    for _ in 0..num_runs {
-        let mut interpreter = Interpreter::<EthInterpreter>::new(
-            SharedMemory::new(),
-            ExtBytecode::new(runtime_bytecode.clone()),
-            InputsImpl {
-                target_address: contract_address,
-                bytecode_address: Some(contract_address),
-                caller_address: BENCH_CALLER,
-                input: CallInput::Bytes(calldata.clone()),
-                call_value: U256::ZERO,
-            },
-            false,
-            SpecId::default(),
-            u64::MAX,
-        );
-
+    for run_index in 0..num_runs {
+        let transaction = TxEnv::builder_for_bench()
+            .nonce(run_index + 1)
+            .kind(TxKind::Call(created_address))
+            .data(calldata.clone())
+            .build_fill();
         let started_at = Instant::now();
-        let action = interpreter.run_plain(&table, &mut host);
+        let result = evm.transact_commit(transaction).context("mantle-revm failed to execute call transaction")?;
         let elapsed = started_at.elapsed();
 
-        if !action.is_return() {
-            bail!("mantle-revm interpreter returned unexpected action: {action:?}");
-        }
-
-        let result = action
-            .instruction_result()
-            .context("mantle-revm interpreter returned without an instruction result")?;
-
-        if !result.is_ok() {
-            bail!("mantle-revm interpreter failed with {result:?}");
+        if !result.is_success() {
+            bail!("mantle-revm call transaction did not succeed: {result:?}");
         }
 
         run_times.push(elapsed.as_secs_f64() * 1000.0);
@@ -171,6 +121,17 @@ mod tests {
     #[test]
     fn deploys_and_runs_minimal_contract() {
         let creation_code = parse_hex_bytes("6001600c60003960016000f300").unwrap();
+        let run_times = run_benchmark_from_bytes(creation_code, Bytes::default(), 1).unwrap();
+
+        assert_eq!(run_times.len(), 1);
+        assert!(run_times[0].is_finite());
+        assert!(run_times[0] >= 0.0);
+    }
+
+    #[test]
+    fn deploys_and_runs_stateful_contract() {
+        let creation_code =
+            parse_hex_bytes("6006600c60003960066000f3600160005500").unwrap();
         let run_times = run_benchmark_from_bytes(creation_code, Bytes::default(), 1).unwrap();
 
         assert_eq!(run_times.len(), 1);
